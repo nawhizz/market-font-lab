@@ -1,9 +1,10 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/api"
+      "source": "/api/memos",
+      "destination": "/api/memos"
     }
-  ]
+  ],
+  "cleanUrls": true
 }
 
