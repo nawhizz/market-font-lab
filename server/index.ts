@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction, Router } from "express";
 import { config } from "dotenv";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./vite";
 
 // .env 파일에서 환경 변수 로드
 // 서버 시작 시 가장 먼저 실행되어야 함
@@ -70,6 +70,8 @@ async function ensureInitialized() {
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
     if (app.get("env") === "development") {
+      // 동적 import로 Vite를 프로덕션 번들에서 제외
+      const { setupVite } = await import("./vite-dev");
       await setupVite(dynamicRouter as any, server);
     } else {
       serveStatic(dynamicRouter as any);
