@@ -1,9 +1,7 @@
-// PostCSS 설정을 함수 형태로 변경하여 from 옵션 자동 전달
-export default (ctx) => {
-  return {
-    plugins: {
-      tailwindcss: {},
-      autoprefixer: {},
-    },
-  };
+// PostCSS 설정 - Vite에서 직접 로드하므로 제거 가능하지만 호환성을 위해 유지
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
 };
