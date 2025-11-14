@@ -71,11 +71,24 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  
+  // Windows에서는 0.0.0.0이 지원되지 않으므로 플랫폼에 따라 host 설정
+  // 개발 환경에서는 localhost 사용, 프로덕션에서는 0.0.0.0 사용 (Linux/Mac)
+  const host = process.platform === 'win32' 
+    ? 'localhost' 
+    : (process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost');
+  
+  server.listen(port, host, () => {
+    log(`serving on http://${host}:${port}`);
+  });
+  
+  // 에러 핸들링 추가
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      log(`Port ${port} is already in use. Please use a different port.`);
+    } else {
+      log(`Server error: ${err.message}`);
+    }
+    process.exit(1);
   });
 })();
