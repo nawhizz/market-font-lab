@@ -1,8 +1,7 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express, { type Request, Response, NextFunction, Router } from "express";
 import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { createServer } from "http";
 
 // .env 파일에서 환경 변수 로드
 // 서버 시작 시 가장 먼저 실행되어야 함
@@ -52,33 +51,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// 앱 초기화 플래그
+// 동적 라우터 - 초기화 완료 후 동작
+const dynamicRouter = Router();
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 
-// 앱 초기화 함수
-async function initializeApp() {
+async function ensureInitialized() {
   if (initialized) return;
-  if (initPromise) return initPromise;
-  
+  if (initPromise) {
+    await initPromise;
+    return;
+  }
+
   initPromise = (async () => {
-    const server = await registerRoutes(app);
-
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-
-      res.status(status).json({ message });
-      throw err;
-    });
+    const server = await registerRoutes(dynamicRouter as any);
 
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
     if (app.get("env") === "development") {
-      await setupVite(app, server);
+      await setupVite(dynamicRouter as any, server);
     } else {
-      serveStatic(app);
+      serveStatic(dynamicRouter as any);
     }
 
     initialized = true;
@@ -114,26 +108,21 @@ async function initializeApp() {
     }
   })();
 
-  return initPromise;
+  await initPromise;
 }
 
-// 초기화 실행 (로컬 개발 환경)
-if (!process.env.VERCEL) {
-  initializeApp();
-}
-
-// Vercel 서버리스를 위한 래퍼 - 요청 시 초기화 보장
-const handler: express.Application = new Proxy(app, {
-  get(target, prop) {
-    if (prop === 'handle' || prop === 'emit') {
-      return async function(this: any, ...args: any[]) {
-        await initializeApp();
-        return (target as any)[prop].apply(target, args);
-      };
-    }
-    return (target as any)[prop];
-  }
+// 모든 요청을 동적 라우터로 전달하되, 먼저 초기화 보장
+app.use(async (req, res, next) => {
+  await ensureInitialized();
+  dynamicRouter(req, res, next);
 });
 
-// Vercel 서버리스를 위한 export
-export default handler;
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+
+  res.status(status).json({ message });
+});
+
+// Vercel 서버리스와 로컬 환경 모두 지원하는 export
+export default app;
