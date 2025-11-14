@@ -1,6 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+// .env 파일에서 환경 변수 로드
+// 서버 시작 시 가장 먼저 실행되어야 함
+config();
 
 const app = express();
 
